@@ -1,14 +1,14 @@
 {
   "version": 2,
+  "buildCommand": null,
+  "outputDirectory": "public",
+  "framework": null,
   "functions": {
     "api/extract.js": {
       "maxDuration": 60,
       "memory": 1024
     }
   },
-  "rewrites": [
-    { "source": "/", "destination": "/public/index.html" }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
