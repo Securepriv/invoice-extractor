@@ -3,9 +3,6 @@ import formidable from 'formidable';
 import sharp from 'sharp';
 import fs from 'fs';
 
-// ─────────────────────────────────────────────
-// Config Vercel : désactiver le parser par défaut
-// ─────────────────────────────────────────────
 export const config = {
   api: {
     bodyParser: false,
@@ -14,6 +11,14 @@ export const config = {
 };
 
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
+const GROQ_MODEL = process.env.GROQ_MODEL || "groq/compound";
+
+// Liste des modèles à essayer en cascade si le premier échoue
+const GROQ_FALLBACK_MODELS = [
+  GROQ_MODEL,
+  "groq/compound",
+  "groq/compound-mini"
+];
 
 // ─────────────────────────────────────────────
 // Preprocessing d'image avec Sharp
@@ -204,22 +209,28 @@ function validateAndCorrectData(data) {
 }
 
 // ─────────────────────────────────────────────
-// Appel Groq avec retry
+// Appel Groq avec retry et fallback automatique
 // ─────────────────────────────────────────────
-async function callGroqVision(groq, base64Image, mimeType, attempt = 1) {
-  console.log(`Tentative ${attempt}/${MAX_RETRIES}...`);
+async function callGroqVision(groq, base64Image, mimeType, attempt = 1, modelIndex = 0) {
+  const currentModel = GROQ_FALLBACK_MODELS[modelIndex];
+  console.log(`\n🔍 Tentative ${attempt}/${MAX_RETRIES} avec modèle: ${currentModel}`);
 
   try {
     const response = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: currentModel,
       messages: [
         {
           role: "user",
           content: [
-            { type: "text", text: buildExtractionPrompt() },
+            { 
+              type: "text", 
+              text: buildExtractionPrompt() 
+            },
             {
               type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${base64Image}` }
+              image_url: { 
+                url: `data:${mimeType};base64,${base64Image}` 
+              }
             }
           ]
         }
@@ -230,30 +241,58 @@ async function callGroqVision(groq, base64Image, mimeType, attempt = 1) {
     });
 
     const content = response.choices[0].message.content;
-    const parsed = extractJSON(content);
+    console.log(`✅ Réponse de ${currentModel} (${content.length} chars)`);
+    console.log(`Aperçu: ${content.substring(0, 200)}...`);
 
-    if (!parsed) throw new Error('Impossible de parser le JSON');
+    const parsed = extractJSON(content);
+    if (!parsed) {
+      throw new Error('Impossible de parser le JSON de la réponse');
+    }
 
     const validation = validateAndCorrectData(parsed);
 
     if (!validation.valid && attempt < MAX_RETRIES) {
-      throw new Error('Données invalides');
+      throw new Error('Données invalides retournées');
     }
 
+    validation.model_used = currentModel;
     return validation;
 
   } catch (error) {
-    if (attempt < MAX_RETRIES) {
-      console.warn(`Erreur tentative ${attempt}: ${error.message}. Retry...`);
-      await new Promise(r => setTimeout(r, 1000 * attempt));
-      return callGroqVision(groq, base64Image, mimeType, attempt + 1);
+    const errorMsg = error.message || '';
+    const errorCode = error.status || error.code || 0;
+    
+    console.warn(`❌ Erreur ${errorCode}: ${errorMsg}`);
+
+    // Détecter les erreurs de modèle (non supporté, décommissionné, etc.)
+    const isModelError = 
+      errorCode === 404 || 
+      errorMsg.includes('model_not_found') ||
+      errorMsg.includes('model_decommissioned') ||
+      errorMsg.includes('does not exist') ||
+      errorMsg.includes('not supported') ||
+      errorMsg.includes('image') && errorMsg.includes('support');
+
+    // Fallback vers le modèle suivant si erreur de modèle
+    if (isModelError && modelIndex < GROQ_FALLBACK_MODELS.length - 1) {
+      console.log(`🔄 Fallback vers le modèle suivant (${GROQ_FALLBACK_MODELS[modelIndex + 1]})...`);
+      return callGroqVision(groq, base64Image, mimeType, 1, modelIndex + 1);
     }
-    throw error;
+
+    // Retry avec le même modèle si erreur temporaire
+    if (attempt < MAX_RETRIES && !isModelError) {
+      console.warn(`⏳ Retry dans ${attempt}s...`);
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+      return callGroqVision(groq, base64Image, mimeType, attempt + 1, modelIndex);
+    }
+
+    // Épuisé toutes les options
+    throw new Error(`Extraction échouée. Modèles testés: ${GROQ_FALLBACK_MODELS.slice(0, modelIndex + 1).join(', ')}. Dernière erreur: ${errorMsg}`);
   }
 }
 
 // ─────────────────────────────────────────────
-// Parser formidable en Promise
+// Parser formidable
 // ─────────────────────────────────────────────
 function parseForm(req) {
   return new Promise((resolve, reject) => {
@@ -271,21 +310,15 @@ function parseForm(req) {
 }
 
 // ─────────────────────────────────────────────
-// Handler principal (Vercel Serverless Function)
+// Handler principal
 // ─────────────────────────────────────────────
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   if (!process.env.GROQ_API_KEY) {
     return res.status(500).json({
@@ -297,7 +330,6 @@ export default async function handler(req, res) {
   let uploadedFile = null;
 
   try {
-    // Parser le fichier uploadé
     const { files } = await parseForm(req);
     const fileArray = files.image;
 
@@ -306,35 +338,33 @@ export default async function handler(req, res) {
     }
 
     uploadedFile = Array.isArray(fileArray) ? fileArray[0] : fileArray;
-    console.log(`Image reçue: ${uploadedFile.originalFilename} (${(uploadedFile.size / 1024).toFixed(1)} KB)`);
+    console.log(`\n📸 Image reçue: ${uploadedFile.originalFilename} (${(uploadedFile.size / 1024).toFixed(1)} KB)`);
 
-    // Preprocessing
     const processedBuffer = await preprocessImage(uploadedFile.filepath);
     const base64Image = processedBuffer.toString('base64');
 
-    // Appel Groq
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const result = await callGroqVision(groq, base64Image, 'image/png');
 
-    console.log(`Extraction réussie: ${result.data.lines.length} lignes`);
+    console.log(`\n✅ Extraction réussie: ${result.data.lines.length} lignes (modèle: ${result.model_used})`);
 
     return res.status(200).json({
       success: true,
       data: result.data,
       warnings: result.warnings,
-      lines_count: result.data.lines.length
+      lines_count: result.data.lines.length,
+      model_used: result.model_used
     });
 
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('❌ Erreur globale:', error);
     return res.status(500).json({
       success: false,
       error: error.message,
-      suggestion: 'Essayez avec une image de meilleure qualité'
+      suggestion: 'Si les modèles Groq ne supportent pas la vision, envisagez d\'utiliser Google Gemini'
     });
 
   } finally {
-    // Cleanup tmp file
     if (uploadedFile && uploadedFile.filepath) {
       try { fs.unlinkSync(uploadedFile.filepath); } catch (e) { /* ignore */ }
     }
