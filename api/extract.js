@@ -11,13 +11,16 @@ export const config = {
 };
 
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-// Liste des modèles de fallback
+// Liste des modèles de fallback (noms valides juillet 2025)
 const GEMINI_FALLBACK_MODELS = [
   GEMINI_MODEL,
-  "gemini-1.5-flash",
-  "gemini-1.5-pro"
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-flash-latest",
+  "gemini-2.0-flash",
+  "gemini-pro-latest"
 ];
 
 // ─────────────────────────────────────────────
