@@ -1,12 +1,12 @@
 {
   "name": "invoice-extractor",
   "version": "2.0.0",
-  "description": "Extraction automatique de factures avec Groq Vision AI",
+  "description": "Extraction automatique de factures avec Gemini Vision AI",
   "scripts": {
     "dev": "vercel dev"
   },
   "dependencies": {
-    "groq-sdk": "^0.8.0",
+    "@google/generative-ai": "^0.21.0",
     "formidable": "^3.5.1",
     "sharp": "^0.33.5"
   },
