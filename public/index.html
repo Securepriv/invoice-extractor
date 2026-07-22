@@ -90,7 +90,7 @@
 
   <div class="header">
     <h1>📄 Extraction automatique de factures <span class="vercel-badge">▲ Vercel</span></h1>
-    <p>Powered by Groq Vision AI — llama-3.2-90b-vision</p>
+    <p>Powered by Google Gemini 2.0 Flash Vision</p>
   </div>
 
   <div class="main-container">
@@ -282,7 +282,7 @@
         loaderSub.textContent = 'Amélioration du contraste et de la netteté';
         const processedFile = await preprocessClientSide(currentFile);
         loaderText.textContent = 'Envoi à Groq Vision AI...';
-        loaderSub.textContent = 'Modèle Llama 4 Scout en cours d\'analyse';
+        loaderSub.textContent = 'Google Gemini 2.0 en cours d\'analyse';
         const formData = new FormData();
         formData.append('image', processedFile);
         const response = await fetch('/api/extract', { method: 'POST', body: formData });
@@ -480,9 +480,9 @@
       try {
         const res = await fetch('/api/health');
         const health = await res.json();
-        if (!health.groq_configured) {
-          showAlert('error', 'Clé API Groq non configurée dans Vercel ! Ajoutez GROQ_API_KEY dans Settings → Environment Variables');
-        }
+        if (!health.gemini_configured) {
+  showAlert('error', 'Clé API Gemini non configurée dans Vercel ! Ajoutez GEMINI_API_KEY dans Settings → Environment Variables');
+}
       } catch (e) {
         showAlert('error', 'Impossible de contacter l\'API');
       }
