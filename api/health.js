@@ -3,8 +3,8 @@ export default function handler(req, res) {
   
   res.status(200).json({
     status: 'ok',
-    groq_configured: !!process.env.GROQ_API_KEY,
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct', // ✅ Mis à jour
+    gemini_configured: !!process.env.GEMINI_API_KEY,
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash-exp',
     platform: 'vercel',
     timestamp: new Date().toISOString()
   });
