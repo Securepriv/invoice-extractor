@@ -11,32 +11,26 @@ export const config = {
 };
 
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
-// ✅ Liste basée sur VOS modèles réellement disponibles
+// ✅ Modèles STABLES depuis votre liste
 const GEMINI_FALLBACK_MODELS = [
   GEMINI_MODEL,
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
   "gemini-flash-latest",
-  "gemini-2.5-pro"
+  "gemini-2.0-flash-001",
+  "gemini-2.5-flash-lite",
+  "gemini-flash-lite-latest",
+  "gemini-2.0-flash-lite-001"
 ];
 
-// ─────────────────────────────────────────────
-// Preprocessing d'image avec Sharp
-// ─────────────────────────────────────────────
 async function preprocessImage(filePath) {
   try {
     const buffer = fs.readFileSync(filePath);
     const metadata = await sharp(buffer).metadata();
 
     let pipeline = sharp(buffer);
-
     if (metadata.width > 2048) {
-      pipeline = pipeline.resize(2048, null, {
-        withoutEnlargement: true,
-        fit: 'inside'
-      });
+      pipeline = pipeline.resize(2048, null, { withoutEnlargement: true, fit: 'inside' });
     }
 
     const processed = await pipeline
@@ -49,35 +43,31 @@ async function preprocessImage(filePath) {
 
     console.log(`✅ Image preprocessée: ${metadata.width}x${metadata.height}`);
     return processed;
-
   } catch (error) {
     console.warn('⚠️ Preprocessing échoué:', error.message);
     return fs.readFileSync(filePath);
   }
 }
 
-// ─────────────────────────────────────────────
-// Prompt engineering
-// ─────────────────────────────────────────────
 function buildExtractionPrompt() {
   return `Tu es un système expert d'extraction de données de factures.
 Analyse cette image de facture et extrait TOUTES les lignes d'articles du tableau.
 
 RÈGLES STRICTES:
-1. Extrait chaque ligne d'article visible dans le tableau de la facture
-2. Utilise le POINT comme séparateur décimal (pas la virgule)
+1. Extrait chaque ligne d'article visible dans le tableau
+2. Utilise le POINT comme séparateur décimal
 3. Les montants doivent être des nombres, pas des chaînes
 4. Si une valeur n'est pas lisible, mets null
 5. Vérifie que: net_amount ≈ quantity × unit_price (tolérance 0.02)
-6. Ne saute aucune ligne, même si elle est partiellement visible
+6. Ne saute aucune ligne
 7. Le champ vat_code est souvent 21, 9 ou 0
 
-FORMAT DE SORTIE OBLIGATOIRE (JSON valide uniquement):
+FORMAT JSON OBLIGATOIRE:
 {
   "invoice_info": {
     "invoice_number": "4262031",
     "invoice_date": "29/05/26",
-    "supplier": "Nom du fournisseur",
+    "supplier": "Nom fournisseur",
     "currency": "EUR",
     "net_amount": 644.53,
     "vat_amount": 135.35,
@@ -89,7 +79,7 @@ FORMAT DE SORTIE OBLIGATOIRE (JSON valide uniquement):
       "quantity": 5.00,
       "unit": "stuks",
       "article_number": "GWA-WMQN02.5K",
-      "description": "Watermeter Q3 4 KIWA DN20 G1 L=190 mm",
+      "description": "Watermeter Q3 4 KIWA DN20",
       "unit_price": 57.31,
       "net_amount": 286.55,
       "vat_code": 21
@@ -98,12 +88,9 @@ FORMAT DE SORTIE OBLIGATOIRE (JSON valide uniquement):
   "confidence": 0.95
 }
 
-Retourne UNIQUEMENT le JSON, sans texte avant ou après, sans markdown.`;
+Retourne UNIQUEMENT le JSON, sans texte avant/après, sans markdown.`;
 }
 
-// ─────────────────────────────────────────────
-// Parsing JSON robuste
-// ─────────────────────────────────────────────
 function extractJSON(text) {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/```json\s*/gi, '');
@@ -115,7 +102,6 @@ function extractJSON(text) {
   } catch (e) {
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
-
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       try {
         return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
@@ -123,26 +109,17 @@ function extractJSON(text) {
         let fixed = cleaned.substring(firstBrace, lastBrace + 1);
         fixed = fixed.replace(/(\d+),(\d+)/g, '$1.$2');
         fixed = fixed.replace(/,\s*([}\]])/g, '$1');
-
-        try {
-          return JSON.parse(fixed);
-        } catch (e3) {
-          return null;
-        }
+        try { return JSON.parse(fixed); } catch (e3) { return null; }
       }
     }
   }
   return null;
 }
 
-// ─────────────────────────────────────────────
-// Validation des données
-// ─────────────────────────────────────────────
 function validateAndCorrectData(data) {
   const warnings = [];
-
   if (!data || !data.lines || !Array.isArray(data.lines)) {
-    return { valid: false, errors: ['Pas de lignes trouvées'], warnings: [], data: null };
+    return { valid: false, errors: ['Pas de lignes'], warnings: [], data: null };
   }
 
   data.lines = data.lines.map((line, index) => {
@@ -175,20 +152,9 @@ function validateAndCorrectData(data) {
     return line;
   });
 
-  if (data.invoice_info && data.invoice_info.net_amount) {
-    const sumLines = data.lines.reduce((sum, l) => sum + (l.net_amount || 0), 0);
-    const totalDiff = Math.abs(sumLines - data.invoice_info.net_amount);
-    if (totalDiff > 0.10) {
-      warnings.push(`Somme lignes (${sumLines.toFixed(2)}) ≠ Total (${data.invoice_info.net_amount})`);
-    }
-  }
-
   return { valid: data.lines.length > 0, errors: [], warnings, data };
 }
 
-// ─────────────────────────────────────────────
-// Appel Gemini Vision avec retry et fallback
-// ─────────────────────────────────────────────
 async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, modelIndex = 0) {
   const uniqueModels = [...new Set(GEMINI_FALLBACK_MODELS)];
   const currentModel = uniqueModels[modelIndex];
@@ -203,40 +169,29 @@ async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, model
   console.log(`═══════════════════════════════════════`);
 
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: currentModel 
-    });
-
-    const generationConfig = {
-      temperature: 0.1,
-      maxOutputTokens: 4096,
-      responseMimeType: "application/json",
-    };
+    const model = genAI.getGenerativeModel({ model: currentModel });
 
     const result = await model.generateContent({
       contents: [{
         role: "user",
         parts: [
           { text: buildExtractionPrompt() },
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Image
-            }
-          }
+          { inlineData: { mimeType: mimeType, data: base64Image } }
         ]
       }],
-      generationConfig
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      }
     });
 
-    const response = await result.response;
-    const content = response.text();
-    
+    const content = result.response.text();
     console.log(`✅ SUCCÈS avec ${currentModel}`);
-    console.log(`📝 Réponse (${content.length} chars): ${content.substring(0, 300)}...`);
+    console.log(`📝 Aperçu (${content.length} chars): ${content.substring(0, 300)}...`);
 
     const parsed = extractJSON(content);
-    if (!parsed) throw new Error('Impossible de parser le JSON');
+    if (!parsed) throw new Error('JSON invalide');
 
     const validation = validateAndCorrectData(parsed);
     if (!validation.valid && attempt < MAX_RETRIES) {
@@ -250,31 +205,49 @@ async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, model
     const errorMsg = error.message || '';
     console.warn(`❌ ÉCHEC avec ${currentModel}: ${errorMsg.substring(0, 200)}`);
 
+    // Quota dépassé (429)
+    const isQuotaError = 
+      errorMsg.includes('429') ||
+      errorMsg.includes('Too Many Requests') ||
+      errorMsg.includes('quota');
+
+    // Modèle inexistant/inaccessible
     const isModelError = 
       errorMsg.includes('not found') ||
       errorMsg.includes('404') ||
       errorMsg.includes('not supported') ||
       errorMsg.includes('permission') ||
-      errorMsg.includes('is not found for API version');
+      errorMsg.includes('is no longer');
 
+    // Quota → passer au modèle suivant après pause
+    if (isQuotaError && modelIndex < uniqueModels.length - 1) {
+      console.log(`⚠️ Quota dépassé sur ${currentModel}, attente 3s puis fallback...`);
+      await new Promise(r => setTimeout(r, 3000));
+      return callGeminiVision(genAI, base64Image, mimeType, 1, modelIndex + 1);
+    }
+
+    // Erreur modèle → suivant
     if (isModelError && modelIndex < uniqueModels.length - 1) {
       console.log(`🔄 Fallback vers ${uniqueModels[modelIndex + 1]}...`);
       return callGeminiVision(genAI, base64Image, mimeType, 1, modelIndex + 1);
     }
 
-    if (attempt < MAX_RETRIES && !isModelError) {
+    // Retry uniquement pour erreurs temporaires
+    if (attempt < MAX_RETRIES && !isModelError && !isQuotaError) {
       console.warn(`⏳ Retry dans ${attempt}s...`);
       await new Promise(r => setTimeout(r, 1000 * attempt));
       return callGeminiVision(genAI, base64Image, mimeType, attempt + 1, modelIndex);
+    }
+
+    // Message d'erreur clair pour l'utilisateur
+    if (isQuotaError) {
+      throw new Error(`⏱️ Quota Gemini dépassé sur tous les modèles. Attendez 1 minute et réessayez, ou créez une nouvelle clé API sur https://aistudio.google.com/apikey`);
     }
 
     throw new Error(`Extraction échouée. Modèles testés: ${uniqueModels.slice(0, modelIndex + 1).join(', ')}. Erreur: ${errorMsg.substring(0, 150)}`);
   }
 }
 
-// ─────────────────────────────────────────────
-// Parser formidable
-// ─────────────────────────────────────────────
 function parseForm(req) {
   return new Promise((resolve, reject) => {
     const form = formidable({
@@ -283,15 +256,11 @@ function parseForm(req) {
       keepExtensions: true,
     });
     form.parse(req, (err, fields, files) => {
-      if (err) reject(err);
-      else resolve({ fields, files });
+      if (err) reject(err); else resolve({ fields, files });
     });
   });
 }
 
-// ─────────────────────────────────────────────
-// Handler principal
-// ─────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -303,7 +272,7 @@ export default async function handler(req, res) {
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({
       success: false,
-      error: 'GEMINI_API_KEY non configurée dans Vercel Environment Variables'
+      error: 'GEMINI_API_KEY non configurée dans Vercel'
     });
   }
 
@@ -323,7 +292,7 @@ export default async function handler(req, res) {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const result = await callGeminiVision(genAI, base64Image, 'image/png');
 
-    console.log(`\n✅ EXTRACTION RÉUSSIE: ${result.data.lines.length} lignes (modèle: ${result.model_used})`);
+    console.log(`\n✅ EXTRACTION RÉUSSIE: ${result.data.lines.length} lignes (${result.model_used})`);
 
     return res.status(200).json({
       success: true,
@@ -338,7 +307,7 @@ export default async function handler(req, res) {
     return res.status(500).json({
       success: false,
       error: error.message,
-      suggestion: 'Vérifiez que GEMINI_API_KEY est correcte et que le modèle est disponible'
+      suggestion: 'Vérifiez le quota Gemini ou attendez quelques minutes'
     });
 
   } finally {
