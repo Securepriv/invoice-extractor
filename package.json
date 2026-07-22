@@ -3,19 +3,14 @@
   "version": "2.0.0",
   "description": "Extraction automatique de factures avec Groq Vision AI",
   "scripts": {
-    "dev": "vercel dev",
-    "start": "vercel dev",
-    "deploy": "vercel --prod"
+    "dev": "vercel dev"
   },
   "dependencies": {
     "groq-sdk": "^0.8.0",
     "formidable": "^3.5.1",
     "sharp": "^0.33.5"
   },
-  "devDependencies": {
-    "vercel": "^37.0.0"
-  },
   "engines": {
-    "node": ">=18.x"
+    "node": "20.x"
   }
 }
