@@ -1,4 +1,4 @@
-import Groq from 'groq-sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import formidable from 'formidable';
 import sharp from 'sharp';
 import fs from 'fs';
@@ -11,13 +11,13 @@ export const config = {
 };
 
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
-const GROQ_MODEL = process.env.GROQ_MODEL || "groq/compound";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
 
-// Liste des modèles à essayer en cascade si le premier échoue
-const GROQ_FALLBACK_MODELS = [
-  GROQ_MODEL,
-  "groq/compound",
-  "groq/compound-mini"
+// Liste des modèles de fallback
+const GEMINI_FALLBACK_MODELS = [
+  GEMINI_MODEL,
+  "gemini-1.5-flash",
+  "gemini-1.5-pro"
 ];
 
 // ─────────────────────────────────────────────
@@ -45,17 +45,17 @@ async function preprocessImage(filePath) {
       .toFormat('png', { quality: 95 })
       .toBuffer();
 
-    console.log(`Image preprocessée: ${metadata.width}x${metadata.height}`);
+    console.log(`✅ Image preprocessée: ${metadata.width}x${metadata.height}`);
     return processed;
 
   } catch (error) {
-    console.warn('Preprocessing échoué:', error.message);
+    console.warn('⚠️ Preprocessing échoué:', error.message);
     return fs.readFileSync(filePath);
   }
 }
 
 // ─────────────────────────────────────────────
-// Prompt engineering avancé
+// Prompt engineering
 // ─────────────────────────────────────────────
 function buildExtractionPrompt() {
   return `Tu es un système expert d'extraction de données de factures.
@@ -70,7 +70,7 @@ RÈGLES STRICTES:
 6. Ne saute aucune ligne, même si elle est partiellement visible
 7. Le champ vat_code est souvent 21, 9 ou 0
 
-EXEMPLE DE FORMAT ATTENDU:
+FORMAT DE SORTIE OBLIGATOIRE (JSON valide uniquement):
 {
   "invoice_info": {
     "invoice_number": "4262031",
@@ -96,7 +96,7 @@ EXEMPLE DE FORMAT ATTENDU:
   "confidence": 0.95
 }
 
-Retourne UNIQUEMENT le JSON valide, sans texte avant ou après, sans markdown.`;
+Retourne UNIQUEMENT le JSON, sans texte avant ou après, sans markdown.`;
 }
 
 // ─────────────────────────────────────────────
@@ -137,40 +137,23 @@ function extractJSON(text) {
 // Validation des données
 // ─────────────────────────────────────────────
 function validateAndCorrectData(data) {
-  const errors = [];
   const warnings = [];
 
   if (!data || !data.lines || !Array.isArray(data.lines)) {
-    return {
-      valid: false,
-      errors: ['Pas de lignes trouvées'],
-      warnings: [],
-      data: null
-    };
+    return { valid: false, errors: ['Pas de lignes trouvées'], warnings: [], data: null };
   }
 
   data.lines = data.lines.map((line, index) => {
-    if (typeof line.quantity === 'string') {
-      line.quantity = parseFloat(line.quantity.replace(',', '.')) || null;
-    }
-    if (typeof line.unit_price === 'string') {
-      line.unit_price = parseFloat(line.unit_price.replace(',', '.')) || null;
-    }
-    if (typeof line.net_amount === 'string') {
-      line.net_amount = parseFloat(line.net_amount.replace(',', '.')) || null;
-    }
-    if (typeof line.vat_code === 'string') {
-      line.vat_code = parseInt(line.vat_code) || null;
-    }
+    if (typeof line.quantity === 'string') line.quantity = parseFloat(line.quantity.replace(',', '.')) || null;
+    if (typeof line.unit_price === 'string') line.unit_price = parseFloat(line.unit_price.replace(',', '.')) || null;
+    if (typeof line.net_amount === 'string') line.net_amount = parseFloat(line.net_amount.replace(',', '.')) || null;
+    if (typeof line.vat_code === 'string') line.vat_code = parseInt(line.vat_code) || null;
 
     if (line.quantity && line.unit_price && line.net_amount) {
       const calculated = Math.round(line.quantity * line.unit_price * 100) / 100;
       const diff = Math.abs(calculated - line.net_amount);
-
       if (diff > 0.02) {
-        warnings.push(
-          `Ligne ${index + 1}: ${line.quantity} × ${line.unit_price} = ${calculated} ≠ ${line.net_amount}`
-        );
+        warnings.push(`Ligne ${index + 1}: ${line.quantity} × ${line.unit_price} = ${calculated} ≠ ${line.net_amount}`);
         line.net_amount_original = line.net_amount;
         line.net_amount = calculated;
         line.auto_corrected = true;
@@ -194,65 +177,54 @@ function validateAndCorrectData(data) {
     const sumLines = data.lines.reduce((sum, l) => sum + (l.net_amount || 0), 0);
     const totalDiff = Math.abs(sumLines - data.invoice_info.net_amount);
     if (totalDiff > 0.10) {
-      warnings.push(
-        `Somme lignes (${sumLines.toFixed(2)}) ≠ Total (${data.invoice_info.net_amount})`
-      );
+      warnings.push(`Somme lignes (${sumLines.toFixed(2)}) ≠ Total (${data.invoice_info.net_amount})`);
     }
   }
 
-  return {
-    valid: data.lines.length > 0,
-    errors,
-    warnings,
-    data
-  };
+  return { valid: data.lines.length > 0, errors: [], warnings, data };
 }
 
 // ─────────────────────────────────────────────
-// Appel Groq avec retry et fallback automatique
+// Appel Gemini Vision avec retry et fallback
 // ─────────────────────────────────────────────
-async function callGroqVision(groq, base64Image, mimeType, attempt = 1, modelIndex = 0) {
-  const currentModel = GROQ_FALLBACK_MODELS[modelIndex];
-  console.log(`\n🔍 Tentative ${attempt}/${MAX_RETRIES} avec modèle: ${currentModel}`);
+async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, modelIndex = 0) {
+  const currentModel = GEMINI_FALLBACK_MODELS[modelIndex];
+  
+  console.log(`\n═══════════════════════════════════════`);
+  console.log(`🚀 TENTATIVE ${attempt}/${MAX_RETRIES}`);
+  console.log(`📦 MODÈLE: ${currentModel}`);
+  console.log(`═══════════════════════════════════════`);
 
   try {
-    const response = await groq.chat.completions.create({
+    const model = genAI.getGenerativeModel({
       model: currentModel,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { 
-              type: "text", 
-              text: buildExtractionPrompt() 
-            },
-            {
-              type: "image_url",
-              image_url: { 
-                url: `data:${mimeType};base64,${base64Image}` 
-              }
-            }
-          ]
-        }
-      ],
-      temperature: 0.05,
-      max_tokens: 4096,
-      top_p: 0.9,
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      }
     });
 
-    const content = response.choices[0].message.content;
-    console.log(`✅ Réponse de ${currentModel} (${content.length} chars)`);
-    console.log(`Aperçu: ${content.substring(0, 200)}...`);
+    const result = await model.generateContent([
+      buildExtractionPrompt(),
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType,
+        }
+      }
+    ]);
+
+    const content = result.response.text();
+    console.log(`✅ SUCCÈS avec ${currentModel}`);
+    console.log(`📝 Réponse (${content.length} chars): ${content.substring(0, 300)}...`);
 
     const parsed = extractJSON(content);
-    if (!parsed) {
-      throw new Error('Impossible de parser le JSON de la réponse');
-    }
+    if (!parsed) throw new Error('Impossible de parser le JSON');
 
     const validation = validateAndCorrectData(parsed);
-
     if (!validation.valid && attempt < MAX_RETRIES) {
-      throw new Error('Données invalides retournées');
+      throw new Error('Données invalides');
     }
 
     validation.model_used = currentModel;
@@ -260,34 +232,28 @@ async function callGroqVision(groq, base64Image, mimeType, attempt = 1, modelInd
 
   } catch (error) {
     const errorMsg = error.message || '';
-    const errorCode = error.status || error.code || 0;
-    
-    console.warn(`❌ Erreur ${errorCode}: ${errorMsg}`);
+    console.warn(`❌ ÉCHEC avec ${currentModel}: ${errorMsg}`);
 
-    // Détecter les erreurs de modèle (non supporté, décommissionné, etc.)
+    // Erreur de modèle → essayer le suivant
     const isModelError = 
-      errorCode === 404 || 
-      errorMsg.includes('model_not_found') ||
-      errorMsg.includes('model_decommissioned') ||
-      errorMsg.includes('does not exist') ||
+      errorMsg.includes('not found') ||
+      errorMsg.includes('404') ||
       errorMsg.includes('not supported') ||
-      errorMsg.includes('image') && errorMsg.includes('support');
+      errorMsg.includes('permission');
 
-    // Fallback vers le modèle suivant si erreur de modèle
-    if (isModelError && modelIndex < GROQ_FALLBACK_MODELS.length - 1) {
-      console.log(`🔄 Fallback vers le modèle suivant (${GROQ_FALLBACK_MODELS[modelIndex + 1]})...`);
-      return callGroqVision(groq, base64Image, mimeType, 1, modelIndex + 1);
+    if (isModelError && modelIndex < GEMINI_FALLBACK_MODELS.length - 1) {
+      console.log(`🔄 Fallback vers ${GEMINI_FALLBACK_MODELS[modelIndex + 1]}...`);
+      return callGeminiVision(genAI, base64Image, mimeType, 1, modelIndex + 1);
     }
 
-    // Retry avec le même modèle si erreur temporaire
+    // Retry temporaire
     if (attempt < MAX_RETRIES && !isModelError) {
       console.warn(`⏳ Retry dans ${attempt}s...`);
       await new Promise(r => setTimeout(r, 1000 * attempt));
-      return callGroqVision(groq, base64Image, mimeType, attempt + 1, modelIndex);
+      return callGeminiVision(genAI, base64Image, mimeType, attempt + 1, modelIndex);
     }
 
-    // Épuisé toutes les options
-    throw new Error(`Extraction échouée. Modèles testés: ${GROQ_FALLBACK_MODELS.slice(0, modelIndex + 1).join(', ')}. Dernière erreur: ${errorMsg}`);
+    throw new Error(`Extraction échouée. Modèles testés: ${GEMINI_FALLBACK_MODELS.slice(0, modelIndex + 1).join(', ')}. Erreur: ${errorMsg}`);
   }
 }
 
@@ -301,7 +267,6 @@ function parseForm(req) {
       uploadDir: '/tmp',
       keepExtensions: true,
     });
-
     form.parse(req, (err, fields, files) => {
       if (err) reject(err);
       else resolve({ fields, files });
@@ -320,10 +285,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!process.env.GROQ_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({
       success: false,
-      error: 'GROQ_API_KEY non configurée dans les variables Vercel'
+      error: 'GEMINI_API_KEY non configurée dans Vercel Environment Variables'
     });
   }
 
@@ -332,10 +297,7 @@ export default async function handler(req, res) {
   try {
     const { files } = await parseForm(req);
     const fileArray = files.image;
-
-    if (!fileArray) {
-      return res.status(400).json({ error: 'Aucune image fournie' });
-    }
+    if (!fileArray) return res.status(400).json({ error: 'Aucune image fournie' });
 
     uploadedFile = Array.isArray(fileArray) ? fileArray[0] : fileArray;
     console.log(`\n📸 Image reçue: ${uploadedFile.originalFilename} (${(uploadedFile.size / 1024).toFixed(1)} KB)`);
@@ -343,10 +305,10 @@ export default async function handler(req, res) {
     const processedBuffer = await preprocessImage(uploadedFile.filepath);
     const base64Image = processedBuffer.toString('base64');
 
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const result = await callGroqVision(groq, base64Image, 'image/png');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const result = await callGeminiVision(genAI, base64Image, 'image/png');
 
-    console.log(`\n✅ Extraction réussie: ${result.data.lines.length} lignes (modèle: ${result.model_used})`);
+    console.log(`\n✅ EXTRACTION RÉUSSIE: ${result.data.lines.length} lignes (modèle: ${result.model_used})`);
 
     return res.status(200).json({
       success: true,
@@ -361,7 +323,7 @@ export default async function handler(req, res) {
     return res.status(500).json({
       success: false,
       error: error.message,
-      suggestion: 'Si les modèles Groq ne supportent pas la vision, envisagez d\'utiliser Google Gemini'
+      suggestion: 'Vérifiez que GEMINI_API_KEY est configurée sur https://aistudio.google.com/apikey'
     });
 
   } finally {
