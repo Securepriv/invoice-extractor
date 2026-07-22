@@ -13,14 +13,13 @@ export const config = {
 const MAX_RETRIES = parseInt(process.env.MAX_RETRIES) || 3;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-// Liste des modèles de fallback (noms valides juillet 2025)
+// ✅ Liste basée sur VOS modèles réellement disponibles
 const GEMINI_FALLBACK_MODELS = [
   GEMINI_MODEL,
   "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-flash-latest",
   "gemini-2.0-flash",
-  "gemini-pro-latest"
+  "gemini-flash-latest",
+  "gemini-2.5-pro"
 ];
 
 // ─────────────────────────────────────────────
@@ -191,7 +190,12 @@ function validateAndCorrectData(data) {
 // Appel Gemini Vision avec retry et fallback
 // ─────────────────────────────────────────────
 async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, modelIndex = 0) {
-  const currentModel = GEMINI_FALLBACK_MODELS[modelIndex];
+  const uniqueModels = [...new Set(GEMINI_FALLBACK_MODELS)];
+  const currentModel = uniqueModels[modelIndex];
+
+  if (!currentModel) {
+    throw new Error(`Tous les modèles ont été testés: ${uniqueModels.join(', ')}`);
+  }
   
   console.log(`\n═══════════════════════════════════════`);
   console.log(`🚀 TENTATIVE ${attempt}/${MAX_RETRIES}`);
@@ -199,26 +203,35 @@ async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, model
   console.log(`═══════════════════════════════════════`);
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: currentModel,
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 4096,
-        responseMimeType: "application/json",
-      }
+    const model = genAI.getGenerativeModel({ 
+      model: currentModel 
     });
 
-    const result = await model.generateContent([
-      buildExtractionPrompt(),
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType,
-        }
-      }
-    ]);
+    const generationConfig = {
+      temperature: 0.1,
+      maxOutputTokens: 4096,
+      responseMimeType: "application/json",
+    };
 
-    const content = result.response.text();
+    const result = await model.generateContent({
+      contents: [{
+        role: "user",
+        parts: [
+          { text: buildExtractionPrompt() },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Image
+            }
+          }
+        ]
+      }],
+      generationConfig
+    });
+
+    const response = await result.response;
+    const content = response.text();
+    
     console.log(`✅ SUCCÈS avec ${currentModel}`);
     console.log(`📝 Réponse (${content.length} chars): ${content.substring(0, 300)}...`);
 
@@ -235,28 +248,27 @@ async function callGeminiVision(genAI, base64Image, mimeType, attempt = 1, model
 
   } catch (error) {
     const errorMsg = error.message || '';
-    console.warn(`❌ ÉCHEC avec ${currentModel}: ${errorMsg}`);
+    console.warn(`❌ ÉCHEC avec ${currentModel}: ${errorMsg.substring(0, 200)}`);
 
-    // Erreur de modèle → essayer le suivant
     const isModelError = 
       errorMsg.includes('not found') ||
       errorMsg.includes('404') ||
       errorMsg.includes('not supported') ||
-      errorMsg.includes('permission');
+      errorMsg.includes('permission') ||
+      errorMsg.includes('is not found for API version');
 
-    if (isModelError && modelIndex < GEMINI_FALLBACK_MODELS.length - 1) {
-      console.log(`🔄 Fallback vers ${GEMINI_FALLBACK_MODELS[modelIndex + 1]}...`);
+    if (isModelError && modelIndex < uniqueModels.length - 1) {
+      console.log(`🔄 Fallback vers ${uniqueModels[modelIndex + 1]}...`);
       return callGeminiVision(genAI, base64Image, mimeType, 1, modelIndex + 1);
     }
 
-    // Retry temporaire
     if (attempt < MAX_RETRIES && !isModelError) {
       console.warn(`⏳ Retry dans ${attempt}s...`);
       await new Promise(r => setTimeout(r, 1000 * attempt));
       return callGeminiVision(genAI, base64Image, mimeType, attempt + 1, modelIndex);
     }
 
-    throw new Error(`Extraction échouée. Modèles testés: ${GEMINI_FALLBACK_MODELS.slice(0, modelIndex + 1).join(', ')}. Erreur: ${errorMsg}`);
+    throw new Error(`Extraction échouée. Modèles testés: ${uniqueModels.slice(0, modelIndex + 1).join(', ')}. Erreur: ${errorMsg.substring(0, 150)}`);
   }
 }
 
@@ -326,7 +338,7 @@ export default async function handler(req, res) {
     return res.status(500).json({
       success: false,
       error: error.message,
-      suggestion: 'Vérifiez que GEMINI_API_KEY est configurée sur https://aistudio.google.com/apikey'
+      suggestion: 'Vérifiez que GEMINI_API_KEY est correcte et que le modèle est disponible'
     });
 
   } finally {
