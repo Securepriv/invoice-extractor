@@ -282,7 +282,7 @@
         loaderSub.textContent = 'Amélioration du contraste et de la netteté';
         const processedFile = await preprocessClientSide(currentFile);
         loaderText.textContent = 'Envoi à Groq Vision AI...';
-        loaderSub.textContent = 'Modèle llama-3.2-90b-vision en cours d\'analyse';
+        loaderSub.textContent = 'Modèle Llama 4 Scout en cours d\'analyse';
         const formData = new FormData();
         formData.append('image', processedFile);
         const response = await fetch('/api/extract', { method: 'POST', body: formData });
