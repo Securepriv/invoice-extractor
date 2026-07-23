@@ -31,6 +31,8 @@
     .btn-success { background: linear-gradient(135deg, #2e7d32, #43a047); color: white; }
     .btn-success:hover:not(:disabled) { background: linear-gradient(135deg, #1b5e20, #2e7d32); }
     .btn-danger { background: #ef5350; color: white; padding: 6px 12px; font-size: 13px; }
+    .btn-danger-large { background: linear-gradient(135deg, #d32f2f, #ef5350); color: white; }
+    .btn-danger-large:hover:not(:disabled) { background: linear-gradient(135deg, #b71c1c, #d32f2f); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4); }
     .btn-secondary { background: #78909c; color: white; }
     .btn-outline { background: transparent; border: 2px solid #3f51b5; color: #3f51b5; }
     
@@ -44,6 +46,66 @@
     .btn-copy-row:hover { background: #00897b; transform: scale(1.05); }
     
     .actions-bar { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; align-items: center; }
+    
+    /* ── Mode ajout toggle ── */
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      background: linear-gradient(135deg, #fff8e1, #ffecb3);
+      border: 2px solid #ffc107;
+      border-radius: 10px;
+      margin-top: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .mode-toggle:hover { background: linear-gradient(135deg, #ffecb3, #ffe082); }
+    .mode-toggle.active { 
+      background: linear-gradient(135deg, #c8e6c9, #a5d6a7);
+      border-color: #4caf50;
+    }
+    .mode-toggle input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #4caf50;
+    }
+    .mode-toggle-text { font-weight: 600; font-size: 14px; color: #333; flex: 1; }
+    .mode-toggle-badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #ff9800;
+      color: white;
+    }
+    .mode-toggle.active .mode-toggle-badge {
+      background: #4caf50;
+    }
+    
+    /* ── Session info ── */
+    .session-info {
+      display: none;
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-left: 4px solid #2196f3;
+      padding: 12px 18px;
+      border-radius: 8px;
+      margin-top: 15px;
+      font-size: 14px;
+      align-items: center;
+      gap: 15px;
+    }
+    .session-info.visible { display: flex; }
+    .session-info-badge {
+      background: #2196f3;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 12px;
+    }
     
     .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
     .card-header { padding: 15px 20px; font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; }
@@ -60,6 +122,27 @@
     th { padding: 12px 10px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
     td { padding: 6px 8px; border-bottom: 1px solid #eee; }
     tbody tr:hover { background: #f5f7ff; }
+    
+    /* ── Source badge (indicateur de page d'origine) ── */
+    tbody tr[data-source="1"] { border-left: 4px solid #2196f3; }
+    tbody tr[data-source="2"] { border-left: 4px solid #4caf50; }
+    tbody tr[data-source="3"] { border-left: 4px solid #ff9800; }
+    tbody tr[data-source="4"] { border-left: 4px solid #9c27b0; }
+    tbody tr[data-source="5"] { border-left: 4px solid #e91e63; }
+    tbody tr[data-source="6"] { border-left: 4px solid #00bcd4; }
+    tbody tr[data-source="7"] { border-left: 4px solid #ffc107; }
+    tbody tr[data-source="8"] { border-left: 4px solid #795548; }
+    
+    .source-tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #eeeeee;
+      color: #555;
+      margin-left: 5px;
+    }
     
     td input { width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; transition: all 0.2s; }
     td input:focus { border-color: #3f51b5; outline: none; box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.15); }
@@ -80,6 +163,7 @@
     .alert-warning { background: #fff3e0; border-left: 4px solid #ff9800; color: #e65100; }
     .alert-error { background: #ffebee; border-left: 4px solid #f44336; color: #c62828; }
     .alert-success { background: #e8f5e9; border-left: 4px solid #4caf50; color: #2e7d32; }
+    .alert-info { background: #e3f2fd; border-left: 4px solid #2196f3; color: #0d47a1; }
     .alert-icon { font-size: 18px; flex-shrink: 0; }
     
     .stats-bar { display: flex; gap: 20px; padding: 12px 20px; background: #f5f5f5; border-top: 1px solid #eee; font-size: 14px; flex-wrap: wrap; }
@@ -109,12 +193,37 @@
       opacity: 1;
     }
     
+    /* ── Modal confirmation ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1500;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    .modal-icon { font-size: 48px; margin-bottom: 15px; }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .modal-text { color: #666; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: center; }
+    
     #preprocessCanvas { display: none; }
     .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
   </style>
 </head>
 <body>
 
+  <!-- Loader overlay -->
   <div class="loader-overlay" id="loader">
     <div class="loader-card">
       <div class="spinner"></div>
@@ -123,9 +232,23 @@
     </div>
   </div>
 
+  <!-- Modal confirmation vidage -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-card">
+      <div class="modal-icon">⚠️</div>
+      <div class="modal-title">Vider le tableau ?</div>
+      <div class="modal-text" id="confirmText">Toutes les lignes seront supprimées. Cette action est irréversible.</div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeConfirm()">Annuler</button>
+        <button class="btn btn-danger-large" onclick="confirmClearTable()">🗑️ Vider</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
   <div class="header">
     <h1>📄 Extraction automatique de factures <span class="vercel-badge">▲ Vercel</span></h1>
-    <p>Powered by Google Gemini Vision AI</p>
+    <p>Powered by Google Gemini Vision AI — Multi-images supporté</p>
   </div>
 
   <div class="main-container">
@@ -147,6 +270,25 @@
         <button class="btn btn-danger" onclick="clearFile()" style="margin-left:auto;">✕ Supprimer</button>
       </div>
 
+      <!-- ✨ TOGGLE MODE AJOUT ✨ -->
+      <label class="mode-toggle" id="modeToggle" onclick="toggleMode()">
+        <input type="checkbox" id="appendMode" onclick="event.stopPropagation()">
+        <div class="mode-toggle-text">
+          🔗 <strong>Mode Ajout</strong> — Les nouvelles lignes s'ajoutent au tableau existant (au lieu de le remplacer)
+        </div>
+        <span class="mode-toggle-badge" id="modeBadge">MODE REMPLACEMENT</span>
+      </label>
+
+      <!-- ✨ INFO SESSION ✨ -->
+      <div class="session-info" id="sessionInfo">
+        <span class="session-info-badge">SESSION</span>
+        <span>📄 <strong id="sessionImageCount">0</strong> image(s) analysée(s)</span>
+        <span>📦 <strong id="sessionLineCount">0</strong> ligne(s) au total</span>
+        <button class="btn btn-secondary" onclick="resetSession()" style="margin-left:auto; padding:6px 12px; font-size:12px;">
+          🔄 Nouvelle session
+        </button>
+      </div>
+
       <div class="actions-bar">
         <button class="btn btn-primary" id="extractBtn" onclick="extractData()" disabled>
           🔍 Analyser avec Gemini Vision
@@ -157,7 +299,8 @@
         <button class="btn btn-copy" onclick="copyAllRowsWithHeaders()">
           📋 Copier avec en-têtes
         </button>
-        <button class="btn btn-outline" onclick="addRow()">➕ Ajouter ligne</button>
+        <button class="btn btn-outline" onclick="addRow()">➕ Ligne vide</button>
+        <button class="btn btn-danger-large" onclick="askClearTable()">🗑️ Vider tableau</button>
         <button class="btn btn-success" onclick="exportData()">💾 JSON</button>
         <button class="btn btn-secondary" onclick="exportCSV()">📊 CSV</button>
       </div>
@@ -167,7 +310,7 @@
 
     <!-- Aperçu image -->
     <div class="card">
-      <div class="card-header">🖼️ Aperçu de l'image</div>
+      <div class="card-header">🖼️ Aperçu de la dernière image analysée</div>
       <div class="card-body preview-container" id="previewContainer">
         <div class="placeholder-text">L'aperçu de votre image apparaîtra ici</div>
       </div>
@@ -200,12 +343,13 @@
                 Quantity
                 <button class="btn-copy-col" onclick="copyColumn(3)" title="Copier cette colonne">📋</button>
               </th>
+              <th style="width:70px">Source</th>
               <th style="width:120px">Actions</th>
             </tr>
           </thead>
           <tbody id="tableBody">
             <tr>
-              <td colspan="6" style="text-align:center; padding:30px; color:#999;">
+              <td colspan="7" style="text-align:center; padding:30px; color:#999;">
                 Aucune donnée — Uploadez une image pour commencer
               </td>
             </tr>
@@ -216,11 +360,12 @@
       <div class="stats-bar" id="statsBar" style="display:none;">
         <div class="stat-item">📦 Lignes: <span class="stat-value" id="statLines">0</span></div>
         <div class="stat-item">💰 Total net: <span class="stat-value" id="statTotal">0.00</span></div>
+        <div class="stat-item">📄 Images: <span class="stat-value" id="statImages">0</span></div>
       </div>
     </div>
 
     <div class="footer">
-      Invoice Extractor v4.0 — Simplified — Gemini Vision AI
+      Invoice Extractor v5.0 — Multi-images — Gemini Vision AI
     </div>
   </div>
 
@@ -228,9 +373,42 @@
 
   <script>
     // ═════════════════════════════════════════════════════════
-    // VARIABLES GLOBALES
+    // VARIABLES GLOBALES DE SESSION
     // ═════════════════════════════════════════════════════════
     let currentFile = null;
+    let sessionImageCount = 0;   // Nombre d'images analysées dans la session
+    let currentSourceId = 0;     // ID de la source actuelle (1, 2, 3...)
+    let pendingClearAction = null; // Pour la modal de confirmation
+
+    // ═════════════════════════════════════════════════════════
+    // MODE AJOUT / REMPLACEMENT
+    // ═════════════════════════════════════════════════════════
+    function toggleMode() {
+      const checkbox = document.getElementById('appendMode');
+      // Si click sur le label (pas la checkbox directement), toggle manuellement
+      if (event.target.tagName !== 'INPUT') {
+        checkbox.checked = !checkbox.checked;
+      }
+      updateModeUI();
+    }
+    
+    function updateModeUI() {
+      const checkbox = document.getElementById('appendMode');
+      const toggle = document.getElementById('modeToggle');
+      const badge = document.getElementById('modeBadge');
+      
+      if (checkbox.checked) {
+        toggle.classList.add('active');
+        badge.textContent = 'MODE AJOUT ACTIVÉ';
+      } else {
+        toggle.classList.remove('active');
+        badge.textContent = 'MODE REMPLACEMENT';
+      }
+    }
+
+    function isAppendMode() {
+      return document.getElementById('appendMode').checked;
+    }
 
     // ═════════════════════════════════════════════════════════
     // DRAG & DROP + FILE SELECT
@@ -263,13 +441,18 @@
       };
       reader.readAsDataURL(file);
       document.getElementById('extractBtn').disabled = false;
+      
+      // 💡 Suggestion : si le tableau contient déjà des données, proposer le mode ajout
+      const existingRows = document.querySelectorAll('#tableBody tr:not(:has(td[colspan]))').length;
+      if (existingRows > 0 && !isAppendMode()) {
+        showAlert('info', `💡 Le tableau contient déjà ${existingRows} ligne(s). Activez "Mode Ajout" pour les conserver et ajouter les nouvelles.`);
+      }
     }
 
     function clearFile() {
       currentFile = null;
       fileInput.value = '';
       document.getElementById('fileInfo').classList.remove('visible');
-      document.getElementById('previewContainer').innerHTML = '<div class="placeholder-text">L\'aperçu de votre image apparaîtra ici</div>';
       document.getElementById('extractBtn').disabled = true;
     }
 
@@ -312,32 +495,61 @@
     }
 
     // ═════════════════════════════════════════════════════════
-    // EXTRACTION
+    // EXTRACTION AVEC MODE AJOUT
     // ═════════════════════════════════════════════════════════
     async function extractData() {
       if (!currentFile) return;
       const loader = document.getElementById('loader');
       const loaderText = document.getElementById('loaderText');
       const loaderSub = document.getElementById('loaderSub');
+      
       try {
         loader.classList.add('visible');
         loaderText.textContent = 'Preprocessing de l\'image...';
         loaderSub.textContent = 'Amélioration du contraste';
+        
         const processedFile = await preprocessClientSide(currentFile);
         loaderText.textContent = 'Envoi à Gemini Vision AI...';
-        loaderSub.textContent = 'Analyse en cours...';
+        loaderSub.textContent = isAppendMode() 
+          ? `Analyse image ${sessionImageCount + 1} (mode ajout)` 
+          : 'Analyse en cours...';
+        
         const formData = new FormData();
         formData.append('image', processedFile);
+        
         const response = await fetch('/api/extract', { method: 'POST', body: formData });
         loaderText.textContent = 'Traitement des résultats...';
+        
         const result = await response.json();
         if (!result.success) throw new Error(result.error || 'Erreur inconnue');
+        
         clearAlerts();
+        
         if (result.warnings && result.warnings.length > 0) {
           result.warnings.forEach(w => showAlert('warning', w));
         }
-        showAlert('success', `✅ Extraction réussie : ${result.lines_count} lignes trouvées`);
-        fillTable(result.data.lines);
+        
+        // ✨ LOGIQUE MODE AJOUT ✨
+        if (isAppendMode()) {
+          // Ajouter au tableau existant
+          currentSourceId++;
+          sessionImageCount++;
+          appendToTable(result.data.lines, currentSourceId);
+          showAlert('success', 
+            `✅ ${result.lines_count} lignes AJOUTÉES depuis image ${sessionImageCount} (source ${currentSourceId})`
+          );
+        } else {
+          // Remplacer le tableau
+          currentSourceId = 1;
+          sessionImageCount = 1;
+          fillTable(result.data.lines, currentSourceId);
+          showAlert('success', 
+            `✅ Extraction réussie : ${result.lines_count} lignes trouvées`
+          );
+        }
+        
+        updateSessionInfo();
+        
       } catch (error) {
         showAlert('error', `Erreur: ${error.message}`);
       } finally {
@@ -346,37 +558,74 @@
     }
 
     // ═════════════════════════════════════════════════════════
-    // TABLEAU
-    // Ordre: Net amount | Article number | Description | Quantity
+    // GESTION DU TABLEAU
     // ═════════════════════════════════════════════════════════
-    function fillTable(lines) {
+    
+    // Remplace complètement le tableau
+    function fillTable(lines, sourceId = 1) {
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
       if (!lines || lines.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#999;">Aucune ligne détectée</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#999;">Aucune ligne détectée</td></tr>`;
         return;
       }
-      lines.forEach((line, index) => addRow(line, index));
+      lines.forEach((line) => addRow(line, null, sourceId));
       updateStats();
     }
 
-    function addRow(data = {}, index = null) {
+    // ✨ NOUVEAU : Ajoute les lignes au tableau existant
+    function appendToTable(lines, sourceId) {
+      if (!lines || lines.length === 0) {
+        showAlert('warning', 'Aucune ligne à ajouter');
+        return;
+      }
+      
+      // Supprimer le placeholder si présent
       const tbody = document.getElementById('tableBody');
       const placeholder = tbody.querySelector('td[colspan]');
       if (placeholder) placeholder.closest('tr').remove();
       
-      const lineNum = index !== null ? index + 1 : tbody.children.length + 1;
+      lines.forEach((line) => addRow(line, null, sourceId));
+      
+      // Effet visuel : mettre en surbrillance les nouvelles lignes
+      const newRows = tbody.querySelectorAll(`tr[data-source="${sourceId}"]`);
+      newRows.forEach(tr => {
+        tr.style.background = '#c8e6c9';
+        setTimeout(() => tr.style.background = '', 1500);
+      });
+      
+      updateStats();
+      
+      // Scroller vers les nouvelles lignes
+      if (newRows.length > 0) {
+        newRows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function addRow(data = {}, index = null, sourceId = null) {
+      const tbody = document.getElementById('tableBody');
+      const placeholder = tbody.querySelector('td[colspan]');
+      if (placeholder) placeholder.closest('tr').remove();
+      
       const tr = document.createElement('tr');
       
-      // 4 colonnes uniquement : Net amount | Article number | Description | Quantity
+      // Ajouter l'attribut source pour l'indicateur visuel
+      if (sourceId !== null) {
+        tr.setAttribute('data-source', sourceId);
+      }
+      
+      // Le # sera renuméroté après
       tr.innerHTML = `
-        <td style="text-align:center; font-weight:700; color:#666;">${lineNum}</td>
+        <td style="text-align:center; font-weight:700; color:#666;">-</td>
         <td><input class="input-number" type="number" step="0.01" 
             value="${data.net_amount ?? ''}"></td>
         <td><input class="input-article" value="${data.article_number || ''}"></td>
         <td><input class="input-desc" value="${data.description || ''}"></td>
         <td><input class="input-number" type="number" step="0.01" 
             value="${data.quantity ?? 1}"></td>
+        <td style="text-align:center; font-size:12px; color:#666;">
+          ${sourceId !== null ? `<span class="source-tag">📄 ${sourceId}</span>` : '<span class="source-tag">✏️</span>'}
+        </td>
         <td style="white-space:nowrap;">
           <button class="btn-copy-row" onclick="copyRow(this)" title="Copier cette ligne">📋</button>
           <button class="btn btn-danger" onclick="deleteRow(this)" title="Supprimer">🗑️</button>
@@ -384,6 +633,7 @@
       `;
       
       tbody.appendChild(tr);
+      renumberRows();
       updateStats();
     }
 
@@ -395,26 +645,113 @@
     
     function renumberRows() {
       const rows = document.querySelectorAll('#tableBody tr');
-      rows.forEach((tr, i) => {
+      let num = 1;
+      rows.forEach((tr) => {
         const firstTd = tr.querySelector('td');
-        if (firstTd && !firstTd.getAttribute('colspan')) firstTd.textContent = i + 1;
+        if (firstTd && !firstTd.getAttribute('colspan')) {
+          firstTd.textContent = num++;
+        }
       });
     }
 
+    // ═════════════════════════════════════════════════════════
+    // VIDER LE TABLEAU (avec confirmation)
+    // ═════════════════════════════════════════════════════════
+    function askClearTable() {
+      const count = document.querySelectorAll('#tableBody tr:not(:has(td[colspan]))').length;
+      if (count === 0) {
+        showAlert('warning', 'Le tableau est déjà vide');
+        return;
+      }
+      
+      document.getElementById('confirmText').textContent = 
+        `${count} ligne(s) seront supprimées. Cette action est irréversible.`;
+      document.getElementById('confirmModal').classList.add('visible');
+      pendingClearAction = 'clearTable';
+    }
+    
+    function confirmClearTable() {
+      if (pendingClearAction === 'clearTable') {
+        clearTableOnly();
+      } else if (pendingClearAction === 'resetSession') {
+        doResetSession();
+      }
+      closeConfirm();
+    }
+    
+    function closeConfirm() {
+      document.getElementById('confirmModal').classList.remove('visible');
+      pendingClearAction = null;
+    }
+
+    function clearTableOnly() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#999;">Aucune donnée — Uploadez une image pour commencer</td></tr>`;
+      updateStats();
+      showAlert('success', 'Tableau vidé ✅');
+    }
+
+    // ═════════════════════════════════════════════════════════
+    // NOUVELLE SESSION (reset compteurs + tableau)
+    // ═════════════════════════════════════════════════════════
+    function resetSession() {
+      const count = document.querySelectorAll('#tableBody tr:not(:has(td[colspan]))').length;
+      if (count === 0 && sessionImageCount === 0) {
+        showAlert('info', 'Aucune session en cours');
+        return;
+      }
+      
+      document.getElementById('confirmText').textContent = 
+        `Nouvelle session : ${count} ligne(s) et ${sessionImageCount} image(s) analysée(s) seront réinitialisées.`;
+      document.getElementById('confirmModal').classList.add('visible');
+      pendingClearAction = 'resetSession';
+    }
+    
+    function doResetSession() {
+      sessionImageCount = 0;
+      currentSourceId = 0;
+      clearTableOnly();
+      updateSessionInfo();
+      showAlert('success', '🔄 Nouvelle session démarrée');
+    }
+
+    // ═════════════════════════════════════════════════════════
+    // STATISTIQUES ET INFO SESSION
+    // ═════════════════════════════════════════════════════════
     function updateStats() {
       const rows = document.querySelectorAll('#tableBody tr');
       let total = 0, count = 0;
+      const sourcesSet = new Set();
+      
       rows.forEach(tr => {
         if (tr.querySelector('td[colspan]')) return;
         count++;
         const inputs = tr.querySelectorAll('input');
         const net = parseFloat(inputs[0]?.value) || 0;
         total += net;
+        
+        const source = tr.getAttribute('data-source');
+        if (source) sourcesSet.add(source);
       });
+      
       document.getElementById('statLines').textContent = count;
       document.getElementById('statTotal').textContent = total.toFixed(2);
+      document.getElementById('statImages').textContent = sourcesSet.size || sessionImageCount;
       document.getElementById('linesCount').textContent = `${count} ligne(s)`;
       document.getElementById('statsBar').style.display = count > 0 ? 'flex' : 'none';
+    }
+    
+    function updateSessionInfo() {
+      const sessionInfo = document.getElementById('sessionInfo');
+      const lineCount = document.querySelectorAll('#tableBody tr:not(:has(td[colspan]))').length;
+      
+      if (sessionImageCount > 0) {
+        sessionInfo.classList.add('visible');
+        document.getElementById('sessionImageCount').textContent = sessionImageCount;
+        document.getElementById('sessionLineCount').textContent = lineCount;
+      } else {
+        sessionInfo.classList.remove('visible');
+      }
     }
 
     // ═════════════════════════════════════════════════════════
@@ -422,12 +759,12 @@
     // ═════════════════════════════════════════════════════════
     function showAlert(type, message) {
       const container = document.getElementById('alertsContainer');
-      const icons = { warning: '⚠️', error: '❌', success: '✅' };
+      const icons = { warning: '⚠️', error: '❌', success: '✅', info: 'ℹ️' };
       const div = document.createElement('div');
       div.className = `alert alert-${type}`;
       div.innerHTML = `<span class="alert-icon">${icons[type]}</span><span>${message}</span>`;
       container.appendChild(div);
-      if (type === 'success') setTimeout(() => div.remove(), 10000);
+      if (type === 'success' || type === 'info') setTimeout(() => div.remove(), 10000);
     }
 
     function clearAlerts() { 
@@ -437,7 +774,6 @@
     // ═════════════════════════════════════════════════════════
     // 📋 FONCTIONS DE COPIE
     // ═════════════════════════════════════════════════════════
-    
     async function copyToClipboard(text) {
       try {
         if (navigator.clipboard && window.isSecureContext) {
@@ -472,21 +808,17 @@
       }, duration);
     }
 
-    // Copier une ligne (4 colonnes)
     async function copyRow(btn) {
       const tr = btn.closest('tr');
       const inputs = tr.querySelectorAll('input');
-      
       const values = [
-        inputs[0].value,  // net_amount
-        inputs[1].value,  // article_number
-        inputs[2].value,  // description
-        inputs[3].value   // quantity
+        inputs[0].value,
+        inputs[1].value,
+        inputs[2].value,
+        inputs[3].value
       ];
-      
       const text = values.join('\t');
       const success = await copyToClipboard(text);
-      
       if (success) {
         showToast('Ligne copiée ! Collez avec Ctrl+V');
         tr.style.background = '#c8e6c9';
@@ -496,33 +828,17 @@
       }
     }
 
-    // Copier tout le tableau
     async function copyAllRows() {
       const rows = document.querySelectorAll('#tableBody tr');
       const lines = [];
-      
       rows.forEach(tr => {
         if (tr.querySelector('td[colspan]')) return;
         const inputs = tr.querySelectorAll('input');
         if (inputs.length < 4) return;
-        
-        const values = [
-          inputs[0].value,
-          inputs[1].value,
-          inputs[2].value,
-          inputs[3].value
-        ];
-        lines.push(values.join('\t'));
+        lines.push([inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value].join('\t'));
       });
-      
-      if (lines.length === 0) {
-        showToast('❌ Aucune ligne à copier');
-        return;
-      }
-      
-      const text = lines.join('\n');
-      const success = await copyToClipboard(text);
-      
+      if (lines.length === 0) { showToast('❌ Aucune ligne à copier'); return; }
+      const success = await copyToClipboard(lines.join('\n'));
       if (success) {
         showToast(`${lines.length} ligne(s) copiée(s) ! Collez avec Ctrl+V`);
         document.querySelectorAll('#tableBody tr').forEach(tr => {
@@ -535,36 +851,18 @@
       }
     }
 
-    // Copier avec en-têtes
     async function copyAllRowsWithHeaders() {
       const rows = document.querySelectorAll('#tableBody tr');
       const lines = [];
-      
-      const headers = ['Net amount', 'Article number', 'Description', 'Quantity'];
-      lines.push(headers.join('\t'));
-      
+      lines.push(['Net amount', 'Article number', 'Description', 'Quantity'].join('\t'));
       rows.forEach(tr => {
         if (tr.querySelector('td[colspan]')) return;
         const inputs = tr.querySelectorAll('input');
         if (inputs.length < 4) return;
-        
-        const values = [
-          inputs[0].value,
-          inputs[1].value,
-          inputs[2].value,
-          inputs[3].value
-        ];
-        lines.push(values.join('\t'));
+        lines.push([inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value].join('\t'));
       });
-      
-      if (lines.length <= 1) {
-        showToast('❌ Aucune ligne à copier');
-        return;
-      }
-      
-      const text = lines.join('\n');
-      const success = await copyToClipboard(text);
-      
+      if (lines.length <= 1) { showToast('❌ Aucune ligne à copier'); return; }
+      const success = await copyToClipboard(lines.join('\n'));
       if (success) {
         showToast(`${lines.length - 1} ligne(s) + en-têtes copiées !`);
         document.querySelectorAll('#tableBody tr').forEach(tr => {
@@ -577,29 +875,17 @@
       }
     }
 
-    // Copier une colonne (0=net, 1=article, 2=desc, 3=qty)
     async function copyColumn(colIndex) {
       const rows = document.querySelectorAll('#tableBody tr');
       const values = [];
-      
       rows.forEach(tr => {
         if (tr.querySelector('td[colspan]')) return;
         const inputs = tr.querySelectorAll('input');
-        if (inputs[colIndex]) {
-          values.push(inputs[colIndex].value);
-        }
+        if (inputs[colIndex]) values.push(inputs[colIndex].value);
       });
-      
-      if (values.length === 0) {
-        showToast('❌ Aucune valeur à copier');
-        return;
-      }
-      
-      const text = values.join('\n');
-      const success = await copyToClipboard(text);
-      
+      if (values.length === 0) { showToast('❌ Aucune valeur à copier'); return; }
+      const success = await copyToClipboard(values.join('\n'));
       const colNames = ['Net amount', 'Article number', 'Description', 'Quantity'];
-      
       if (success) {
         showToast(`Colonne "${colNames[colIndex]}" copiée (${values.length} valeurs)`);
       } else {
@@ -627,15 +913,8 @@
     function exportCSV() {
       const data = collectTableData();
       if (data.lines.length === 0) { showAlert('warning', 'Aucune donnée à exporter'); return; }
-      
-      const headers = ['Net amount', 'Article number', 'Description', 'Quantity'];
-      const rows = data.lines.map(l => [
-        l.net_amount, 
-        l.article_number, 
-        `"${l.description}"`, 
-        l.quantity
-      ]);
-      
+      const headers = ['Net amount', 'Article number', 'Description', 'Quantity', 'Source'];
+      const rows = data.lines.map(l => [l.net_amount, l.article_number, `"${l.description}"`, l.quantity, l.source || '']);
       const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -654,25 +933,28 @@
         if (tr.querySelector('td[colspan]')) return;
         const inputs = tr.querySelectorAll('input');
         if (inputs.length < 4) return;
-        
         lines.push({
           line_number: index + 1,
           net_amount: parseFloat(inputs[0].value) || 0,
           article_number: inputs[1].value || '',
           description: inputs[2].value || '',
-          quantity: parseFloat(inputs[3].value) || 1
+          quantity: parseFloat(inputs[3].value) || 1,
+          source: tr.getAttribute('data-source') || null
         });
       });
       return {
+        session_images: sessionImageCount,
+        total_lines: lines.length,
         lines,
         exported_at: new Date().toISOString()
       };
     }
 
     // ═════════════════════════════════════════════════════════
-    // VÉRIFICATION AU CHARGEMENT
+    // INITIALISATION
     // ═════════════════════════════════════════════════════════
     window.addEventListener('load', async () => {
+      updateModeUI();
       try {
         const res = await fetch('/api/health');
         const health = await res.json();
