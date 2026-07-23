@@ -3,14 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📄 Extraction de Factures - Groq Vision AI</title>
+  <title>📄 Extraction de Factures - Gemini Vision AI</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+    
     .header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 20px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
     .header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
     .header p { font-size: 14px; opacity: 0.8; margin-top: 5px; }
+    .vercel-badge { display: inline-block; padding: 3px 8px; background: #000; color: #fff; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+    
     .main-container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+    
+    /* ── Upload Zone ── */
     .upload-section { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .drop-zone { border: 3px dashed #c5cae9; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; background: #fafbff; }
     .drop-zone:hover, .drop-zone.dragover { border-color: #3f51b5; background: #e8eaf6; }
@@ -19,6 +24,8 @@
     .drop-zone-text strong { color: #3f51b5; }
     .file-info { margin-top: 15px; padding: 10px 15px; background: #e8f5e9; border-radius: 8px; display: none; align-items: center; gap: 10px; }
     .file-info.visible { display: flex; }
+    
+    /* ── Boutons ── */
     .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-primary { background: linear-gradient(135deg, #3f51b5, #5c6bc0); color: white; }
@@ -28,20 +35,39 @@
     .btn-danger { background: #ef5350; color: white; padding: 6px 12px; font-size: 13px; }
     .btn-secondary { background: #78909c; color: white; }
     .btn-outline { background: transparent; border: 2px solid #3f51b5; color: #3f51b5; }
+    
+    /* ── Boutons Copier ── */
+    .btn-copy { background: linear-gradient(135deg, #ff9800, #ffa726); color: white; }
+    .btn-copy:hover:not(:disabled) { background: linear-gradient(135deg, #f57c00, #ff9800); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4); }
+    
+    .btn-copy-col { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; margin-left: 5px; transition: all 0.2s; }
+    .btn-copy-col:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }
+    
+    .btn-copy-row { background: #26a69a; color: white; padding: 6px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; margin-right: 4px; transition: all 0.2s; }
+    .btn-copy-row:hover { background: #00897b; transform: scale(1.05); }
+    
     .actions-bar { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; align-items: center; }
+    
+    /* ── Grid ── */
     .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
     @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+    
     .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
     .card-header { padding: 15px 20px; font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; }
     .card-body { padding: 15px; }
+    
     .preview-container { max-height: 500px; overflow: auto; text-align: center; background: #f5f5f5; }
     .preview-container img { max-width: 100%; height: auto; }
     .placeholder-text { padding: 60px 20px; color: #999; font-size: 14px; }
+    
+    /* ── Info facture ── */
     .invoice-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .info-field { display: flex; flex-direction: column; gap: 3px; }
     .info-field label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #666; }
     .info-field input { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
     .info-field input:focus { border-color: #3f51b5; outline: none; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.1); }
+    
+    /* ── Tableau ── */
     .table-section { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; overflow: hidden; }
     .table-wrapper { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -51,12 +77,16 @@
     tbody tr:hover { background: #f5f7ff; }
     tbody tr.has-warning { background: #fff8e1; }
     tbody tr.has-error { background: #ffebee; }
-    td input { width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; transition: border-color 0.2s; }
+    
+    td input { width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; transition: all 0.2s; }
     td input:focus { border-color: #3f51b5; outline: none; box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.15); }
-    td input.input-number { text-align: right; width: 100px; }
+    td input.input-number { text-align: right; }
     td input.input-desc { min-width: 250px; }
-    td input.input-article { min-width: 160px; }
+    td input.input-article { min-width: 150px; }
+    
     .row-status { font-size: 16px; text-align: center; }
+    
+    /* ── Loader ── */
     .loader-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
     .loader-overlay.visible { display: flex; }
     .loader-card { background: white; border-radius: 16px; padding: 40px 50px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -64,22 +94,51 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .loader-text { font-size: 16px; font-weight: 600; color: #333; }
     .loader-sub { font-size: 13px; color: #999; margin-top: 5px; }
+    
+    /* ── Alertes ── */
     .alerts-container { margin-bottom: 15px; }
     .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
     .alert-warning { background: #fff3e0; border-left: 4px solid #ff9800; color: #e65100; }
     .alert-error { background: #ffebee; border-left: 4px solid #f44336; color: #c62828; }
     .alert-success { background: #e8f5e9; border-left: 4px solid #4caf50; color: #2e7d32; }
     .alert-icon { font-size: 18px; flex-shrink: 0; }
+    
+    /* ── Stats ── */
     .stats-bar { display: flex; gap: 20px; padding: 12px 20px; background: #f5f5f5; border-top: 1px solid #eee; font-size: 14px; flex-wrap: wrap; }
     .stat-item { display: flex; align-items: center; gap: 5px; }
     .stat-value { font-weight: 700; color: #1a237e; }
+    
+    /* ── Toast notification ── */
+    .copy-toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #2e7d32;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 2000;
+      opacity: 0;
+      transition: all 0.3s;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .copy-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
     #preprocessCanvas { display: none; }
     .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
-    .vercel-badge { display: inline-block; padding: 3px 8px; background: #000; color: #fff; border-radius: 4px; font-size: 11px; margin-left: 8px; }
   </style>
 </head>
 <body>
 
+  <!-- Loader overlay -->
   <div class="loader-overlay" id="loader">
     <div class="loader-card">
       <div class="spinner"></div>
@@ -88,13 +147,15 @@
     </div>
   </div>
 
+  <!-- Header -->
   <div class="header">
     <h1>📄 Extraction automatique de factures <span class="vercel-badge">▲ Vercel</span></h1>
-    <p>Powered by Google Gemini 2.0 Flash Vision</p>
+    <p>Powered by Google Gemini Vision AI</p>
   </div>
 
   <div class="main-container">
 
+    <!-- Upload Section -->
     <div class="upload-section">
       <div class="drop-zone" id="dropZone">
         <div class="drop-zone-icon">📤</div>
@@ -114,16 +175,24 @@
 
       <div class="actions-bar">
         <button class="btn btn-primary" id="extractBtn" onclick="extractData()" disabled>
-          🔍 Analyser avec Groq Vision
+          🔍 Analyser avec Gemini Vision
         </button>
-        <button class="btn btn-outline" onclick="addRow()">➕ Ajouter une ligne</button>
-        <button class="btn btn-success" onclick="exportData()">💾 Exporter JSON</button>
-        <button class="btn btn-secondary" onclick="exportCSV()">📊 Exporter CSV</button>
+        <button class="btn btn-copy" onclick="copyAllRows()">
+          📋 Copier tout le tableau
+        </button>
+        <button class="btn btn-copy" onclick="copyAllRowsWithHeaders()">
+          📋 Copier avec en-têtes
+        </button>
+        <button class="btn btn-outline" onclick="addRow()">➕ Ajouter ligne</button>
+        <button class="btn btn-success" onclick="exportData()">💾 JSON</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">📊 CSV</button>
       </div>
     </div>
 
+    <!-- Alertes -->
     <div class="alerts-container" id="alertsContainer"></div>
 
+    <!-- Preview + Invoice Info -->
     <div class="content-grid">
       <div class="card">
         <div class="card-header">🖼️ Aperçu de l'image</div>
@@ -149,6 +218,7 @@
       </div>
     </div>
 
+    <!-- Tableau des lignes -->
     <div class="table-section">
       <div class="card-header">
         📦 Lignes de la facture
@@ -159,20 +229,37 @@
           <thead>
             <tr>
               <th style="width:40px">#</th>
-              <th style="width:80px">Qté</th>
-              <th style="width:60px">Unité</th>
-              <th>N° Article</th>
-              <th>Description</th>
-              <th style="width:100px">Prix unit.</th>
-              <th style="width:110px">Montant net</th>
-              <th style="width:70px">TVA %</th>
+              <th style="width:110px">
+                Net amount
+                <button class="btn-copy-col" onclick="copyColumn(0)" title="Copier cette colonne">📋</button>
+              </th>
+              <th style="width:160px">
+                Article number
+                <button class="btn-copy-col" onclick="copyColumn(1)" title="Copier cette colonne">📋</button>
+              </th>
+              <th>
+                Description
+                <button class="btn-copy-col" onclick="copyColumn(2)" title="Copier cette colonne">📋</button>
+              </th>
+              <th style="width:80px">
+                Quantity
+                <button class="btn-copy-col" onclick="copyColumn(3)" title="Copier cette colonne">📋</button>
+              </th>
+              <th style="width:100px">
+                Unit price
+                <button class="btn-copy-col" onclick="copyColumn(4)" title="Copier cette colonne">📋</button>
+              </th>
+              <th style="width:70px">
+                VAT code
+                <button class="btn-copy-col" onclick="copyColumn(5)" title="Copier cette colonne">📋</button>
+              </th>
               <th style="width:40px">État</th>
-              <th style="width:80px">Action</th>
+              <th style="width:120px">Actions</th>
             </tr>
           </thead>
           <tbody id="tableBody">
             <tr>
-              <td colspan="10" style="text-align:center; padding:30px; color:#999;">
+              <td colspan="9" style="text-align:center; padding:30px; color:#999;">
                 Aucune donnée — Uploadez une image pour commencer
               </td>
             </tr>
@@ -188,16 +275,22 @@
     </div>
 
     <div class="footer">
-      Invoice Extractor v2.0 — Groq Vision AI — Deployed on Vercel
+      Invoice Extractor v3.0 — Gemini Vision AI — Deployed on Vercel
     </div>
   </div>
 
   <canvas id="preprocessCanvas"></canvas>
 
   <script>
+    // ═════════════════════════════════════════════════════════
+    // VARIABLES GLOBALES
+    // ═════════════════════════════════════════════════════════
     let currentFile = null;
     let extractedData = null;
 
+    // ═════════════════════════════════════════════════════════
+    // DRAG & DROP + FILE SELECT
+    // ═════════════════════════════════════════════════════════
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
@@ -236,6 +329,9 @@
       document.getElementById('extractBtn').disabled = true;
     }
 
+    // ═════════════════════════════════════════════════════════
+    // PREPROCESSING CÔTÉ CLIENT
+    // ═════════════════════════════════════════════════════════
     async function preprocessClientSide(file) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -271,6 +367,9 @@
       });
     }
 
+    // ═════════════════════════════════════════════════════════
+    // EXTRACTION VIA API
+    // ═════════════════════════════════════════════════════════
     async function extractData() {
       if (!currentFile) return;
       const loader = document.getElementById('loader');
@@ -281,8 +380,8 @@
         loaderText.textContent = 'Preprocessing de l\'image...';
         loaderSub.textContent = 'Amélioration du contraste et de la netteté';
         const processedFile = await preprocessClientSide(currentFile);
-        loaderText.textContent = 'Envoi à Groq Vision AI...';
-        loaderSub.textContent = 'Google Gemini 2.0 en cours d\'analyse';
+        loaderText.textContent = 'Envoi à Gemini Vision AI...';
+        loaderSub.textContent = 'Analyse en cours...';
         const formData = new FormData();
         formData.append('image', processedFile);
         const response = await fetch('/api/extract', { method: 'POST', body: formData });
@@ -295,7 +394,7 @@
         if (result.warnings && result.warnings.length > 0) {
           result.warnings.forEach(w => showAlert('warning', w));
         }
-        showAlert('success', `✅ Extraction réussie : ${result.lines_count} lignes trouvées`);
+        showAlert('success', `✅ Extraction réussie : ${result.lines_count} lignes trouvées (modèle: ${result.model_used || 'gemini'})`);
         fillInvoiceInfo(result.data.invoice_info);
         fillTable(result.data.lines);
       } catch (error) {
@@ -305,6 +404,9 @@
       }
     }
 
+    // ═════════════════════════════════════════════════════════
+    // REMPLIR LES INFOS FACTURE
+    // ═════════════════════════════════════════════════════════
     function fillInvoiceInfo(info) {
       if (!info) return;
       document.getElementById('infoInvoiceNumber').value = info.invoice_number || '';
@@ -318,47 +420,80 @@
       document.getElementById('infoConfidence').value = confidence != null ? `${(confidence * 100).toFixed(0)}%` : '—';
     }
 
+    // ═════════════════════════════════════════════════════════
+    // REMPLIR LE TABLEAU
+    // ═════════════════════════════════════════════════════════
     function fillTable(lines) {
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
       if (!lines || lines.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#999;">Aucune ligne détectée</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#999;">Aucune ligne détectée</td></tr>`;
         return;
       }
       lines.forEach((line, index) => addRow(line, index));
-      updateStats(lines);
+      updateStats();
     }
 
+    // ═════════════════════════════════════════════════════════
+    // AJOUTER UNE LIGNE
+    // Ordre: Net amount | Article number | Description | Quantity | Unit price | VAT code
+    // ═════════════════════════════════════════════════════════
     function addRow(data = {}, index = null) {
       const tbody = document.getElementById('tableBody');
       const placeholder = tbody.querySelector('td[colspan]');
       if (placeholder) placeholder.closest('tr').remove();
+      
       const lineNum = index !== null ? index + 1 : tbody.children.length + 1;
       const tr = document.createElement('tr');
+      
       let status = '✅', rowClass = '';
       if (data.quantity && data.unit_price && data.net_amount) {
         const calc = Math.round(data.quantity * data.unit_price * 100) / 100;
-        if (Math.abs(calc - data.net_amount) > 0.02) { status = '⚠️'; rowClass = 'has-warning'; }
-      } else if (!data.quantity || !data.unit_price) { status = '❓'; }
-      if (data.auto_corrected) { status = '🔧'; rowClass = 'has-warning'; }
+        if (Math.abs(calc - data.net_amount) > 0.02) { 
+          status = '⚠️'; 
+          rowClass = 'has-warning'; 
+        }
+      } else if (!data.quantity || !data.unit_price) { 
+        status = '❓'; 
+      }
+      if (data.auto_corrected) { 
+        status = '🔧'; 
+        rowClass = 'has-warning'; 
+      }
+      
       tr.className = rowClass;
+      
+      // ✅ NOUVEL ORDRE: Net amount | Article number | Description | Quantity | Unit price | VAT code
       tr.innerHTML = `
         <td style="text-align:center; font-weight:700; color:#666;">${lineNum}</td>
-        <td><input class="input-number" type="number" step="0.01" value="${data.quantity ?? ''}" onchange="recalcRow(this)"></td>
-        <td><input value="${data.unit || 'stuks'}" style="width:60px;"></td>
+        <td><input class="input-number" type="number" step="0.01" 
+            value="${data.net_amount ?? ''}" 
+            ${data.auto_corrected ? 'style="background:#fff3e0;"' : ''}></td>
         <td><input class="input-article" value="${data.article_number || ''}"></td>
         <td><input class="input-desc" value="${data.description || ''}"></td>
-        <td><input class="input-number" type="number" step="0.01" value="${data.unit_price ?? ''}" onchange="recalcRow(this)"></td>
-        <td><input class="input-number" type="number" step="0.01" value="${data.net_amount ?? ''}" ${data.auto_corrected ? 'style="background:#fff3e0;"' : ''}></td>
-        <td><input class="input-number" type="number" value="${data.vat_code ?? 21}" style="width:50px;"></td>
+        <td><input class="input-number" type="number" step="0.01" 
+            value="${data.quantity ?? ''}" onchange="recalcRow(this)"></td>
+        <td><input class="input-number" type="number" step="0.01" 
+            value="${data.unit_price ?? ''}" onchange="recalcRow(this)"></td>
+        <td><input class="input-number" type="number" 
+            value="${data.vat_code ?? 21}" style="width:50px;"></td>
         <td class="row-status">${status}</td>
-        <td><button class="btn btn-danger" onclick="deleteRow(this)">🗑️</button></td>
+        <td style="white-space:nowrap;">
+          <button class="btn-copy-row" onclick="copyRow(this)" title="Copier cette ligne">📋</button>
+          <button class="btn btn-danger" onclick="deleteRow(this)" title="Supprimer">🗑️</button>
+        </td>
       `;
+      
       tbody.appendChild(tr);
       updateStats();
     }
 
-    function deleteRow(btn) { btn.closest('tr').remove(); renumberRows(); updateStats(); }
+    function deleteRow(btn) { 
+      btn.closest('tr').remove(); 
+      renumberRows(); 
+      updateStats(); 
+    }
+    
     function renumberRows() {
       const rows = document.querySelectorAll('#tableBody tr');
       rows.forEach((tr, i) => {
@@ -367,22 +502,31 @@
       });
     }
 
+    // ═════════════════════════════════════════════════════════
+    // RECALCUL LIGNE (nouveaux indices)
+    // [0]=net_amount, [1]=article, [2]=desc, [3]=qty, [4]=price, [5]=vat
+    // ═════════════════════════════════════════════════════════
     function recalcRow(input) {
       const tr = input.closest('tr');
       const inputs = tr.querySelectorAll('input');
-      const qty = parseFloat(inputs[0].value) || 0;
+      const netInput = inputs[0];
+      const qty = parseFloat(inputs[3].value) || 0;
       const price = parseFloat(inputs[4].value) || 0;
-      const netInput = inputs[5];
+      
       if (qty > 0 && price > 0) {
         netInput.value = (qty * price).toFixed(2);
         netInput.style.background = '#e8f5e9';
       }
+      
       const statusTd = tr.querySelector('.row-status');
       if (statusTd) statusTd.textContent = '✅';
       tr.classList.remove('has-warning');
       updateStats();
     }
 
+    // ═════════════════════════════════════════════════════════
+    // STATISTIQUES (net_amount à l'indice 0)
+    // ═════════════════════════════════════════════════════════
     function updateStats() {
       const rows = document.querySelectorAll('#tableBody tr');
       let total = 0, count = 0, warnings = 0;
@@ -390,7 +534,7 @@
         if (tr.querySelector('td[colspan]')) return;
         count++;
         const inputs = tr.querySelectorAll('input');
-        const net = parseFloat(inputs[5]?.value) || 0;
+        const net = parseFloat(inputs[0]?.value) || 0;
         total += net;
         if (tr.classList.contains('has-warning')) warnings++;
       });
@@ -401,6 +545,9 @@
       document.getElementById('statsBar').style.display = count > 0 ? 'flex' : 'none';
     }
 
+    // ═════════════════════════════════════════════════════════
+    // ALERTES
+    // ═════════════════════════════════════════════════════════
     function showAlert(type, message) {
       const container = document.getElementById('alertsContainer');
       const icons = { warning: '⚠️', error: '❌', success: '✅' };
@@ -411,8 +558,208 @@
       if (type === 'success') setTimeout(() => div.remove(), 10000);
     }
 
-    function clearAlerts() { document.getElementById('alertsContainer').innerHTML = ''; }
+    function clearAlerts() { 
+      document.getElementById('alertsContainer').innerHTML = ''; 
+    }
 
+    // ═════════════════════════════════════════════════════════
+    // 📋 FONCTIONS DE COPIE
+    // ═════════════════════════════════════════════════════════
+    
+    /**
+     * Copie du texte dans le presse-papier avec fallback
+     */
+    async function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        return true;
+      } catch (err) {
+        console.error('Erreur copie:', err);
+        return false;
+      }
+    }
+
+    /**
+     * Affiche une notification toast temporaire
+     */
+    function showToast(message, duration = 2500) {
+      document.querySelectorAll('.copy-toast').forEach(t => t.remove());
+      const toast = document.createElement('div');
+      toast.className = 'copy-toast';
+      toast.innerHTML = `✅ ${message}`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    /**
+     * Copie une seule ligne (format tabulé, collable dans Excel)
+     */
+    async function copyRow(btn) {
+      const tr = btn.closest('tr');
+      const inputs = tr.querySelectorAll('input');
+      
+      // Ordre: net_amount, article_number, description, quantity, unit_price, vat_code
+      const values = [
+        inputs[0].value,
+        inputs[1].value,
+        inputs[2].value,
+        inputs[3].value,
+        inputs[4].value,
+        inputs[5].value
+      ];
+      
+      const text = values.join('\t');
+      const success = await copyToClipboard(text);
+      
+      if (success) {
+        showToast('Ligne copiée ! Collez avec Ctrl+V');
+        tr.style.background = '#c8e6c9';
+        setTimeout(() => tr.style.background = '', 800);
+      } else {
+        showToast('❌ Erreur de copie');
+      }
+    }
+
+    /**
+     * Copie TOUTES les lignes au format tabulé
+     */
+    async function copyAllRows() {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const lines = [];
+      
+      rows.forEach(tr => {
+        if (tr.querySelector('td[colspan]')) return;
+        const inputs = tr.querySelectorAll('input');
+        if (inputs.length < 6) return;
+        
+        const values = [
+          inputs[0].value,
+          inputs[1].value,
+          inputs[2].value,
+          inputs[3].value,
+          inputs[4].value,
+          inputs[5].value
+        ];
+        lines.push(values.join('\t'));
+      });
+      
+      if (lines.length === 0) {
+        showToast('❌ Aucune ligne à copier');
+        return;
+      }
+      
+      const text = lines.join('\n');
+      const success = await copyToClipboard(text);
+      
+      if (success) {
+        showToast(`${lines.length} ligne(s) copiée(s) ! Collez avec Ctrl+V`);
+        document.querySelectorAll('#tableBody tr').forEach(tr => {
+          if (tr.querySelector('td[colspan]')) return;
+          tr.style.background = '#c8e6c9';
+          setTimeout(() => tr.style.background = '', 800);
+        });
+      } else {
+        showToast('❌ Erreur de copie');
+      }
+    }
+
+    /**
+     * Copie toutes les lignes AVEC en-têtes
+     */
+    async function copyAllRowsWithHeaders() {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const lines = [];
+      
+      const headers = ['Net amount', 'Article number', 'Description', 'Quantity', 'Unit price', 'VAT code'];
+      lines.push(headers.join('\t'));
+      
+      rows.forEach(tr => {
+        if (tr.querySelector('td[colspan]')) return;
+        const inputs = tr.querySelectorAll('input');
+        if (inputs.length < 6) return;
+        
+        const values = [
+          inputs[0].value,
+          inputs[1].value,
+          inputs[2].value,
+          inputs[3].value,
+          inputs[4].value,
+          inputs[5].value
+        ];
+        lines.push(values.join('\t'));
+      });
+      
+      if (lines.length <= 1) {
+        showToast('❌ Aucune ligne à copier');
+        return;
+      }
+      
+      const text = lines.join('\n');
+      const success = await copyToClipboard(text);
+      
+      if (success) {
+        showToast(`${lines.length - 1} ligne(s) + en-têtes copiées !`);
+        document.querySelectorAll('#tableBody tr').forEach(tr => {
+          if (tr.querySelector('td[colspan]')) return;
+          tr.style.background = '#c8e6c9';
+          setTimeout(() => tr.style.background = '', 800);
+        });
+      } else {
+        showToast('❌ Erreur de copie');
+      }
+    }
+
+    /**
+     * Copie une seule colonne
+     * @param {number} colIndex - 0=net, 1=article, 2=desc, 3=qty, 4=price, 5=vat
+     */
+    async function copyColumn(colIndex) {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const values = [];
+      
+      rows.forEach(tr => {
+        if (tr.querySelector('td[colspan]')) return;
+        const inputs = tr.querySelectorAll('input');
+        if (inputs[colIndex]) {
+          values.push(inputs[colIndex].value);
+        }
+      });
+      
+      if (values.length === 0) {
+        showToast('❌ Aucune valeur à copier');
+        return;
+      }
+      
+      const text = values.join('\n');
+      const success = await copyToClipboard(text);
+      
+      const colNames = ['Net amount', 'Article number', 'Description', 'Quantity', 'Unit price', 'VAT code'];
+      
+      if (success) {
+        showToast(`Colonne "${colNames[colIndex]}" copiée (${values.length} valeurs)`);
+      } else {
+        showToast('❌ Erreur de copie');
+      }
+    }
+
+    // ═════════════════════════════════════════════════════════
+    // EXPORT JSON
+    // ═════════════════════════════════════════════════════════
     function exportData() {
       const data = collectTableData();
       if (data.lines.length === 0) { showAlert('warning', 'Aucune donnée à exporter'); return; }
@@ -427,11 +774,23 @@
       showAlert('success', 'Export JSON téléchargé');
     }
 
+    // ═════════════════════════════════════════════════════════
+    // EXPORT CSV (nouvel ordre des colonnes)
+    // ═════════════════════════════════════════════════════════
     function exportCSV() {
       const data = collectTableData();
       if (data.lines.length === 0) { showAlert('warning', 'Aucune donnée à exporter'); return; }
-      const headers = ['Ligne', 'Quantité', 'Unité', 'N° Article', 'Description', 'Prix unitaire', 'Montant net', 'TVA %'];
-      const rows = data.lines.map(l => [l.line_number, l.quantity, l.unit, l.article_number, `"${l.description}"`, l.unit_price, l.net_amount, l.vat_code]);
+      
+      const headers = ['Net amount', 'Article number', 'Description', 'Quantity', 'Unit price', 'VAT code'];
+      const rows = data.lines.map(l => [
+        l.net_amount, 
+        l.article_number, 
+        `"${l.description}"`, 
+        l.quantity, 
+        l.unit_price, 
+        l.vat_code
+      ]);
+      
       const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -443,22 +802,26 @@
       showAlert('success', 'Export CSV téléchargé');
     }
 
+    // ═════════════════════════════════════════════════════════
+    // COLLECTER LES DONNÉES (nouvel ordre)
+    // [0]=net, [1]=article, [2]=desc, [3]=qty, [4]=price, [5]=vat
+    // ═════════════════════════════════════════════════════════
     function collectTableData() {
       const rows = document.querySelectorAll('#tableBody tr');
       const lines = [];
       rows.forEach((tr, index) => {
         if (tr.querySelector('td[colspan]')) return;
         const inputs = tr.querySelectorAll('input');
-        if (inputs.length < 7) return;
+        if (inputs.length < 6) return;
+        
         lines.push({
           line_number: index + 1,
-          quantity: parseFloat(inputs[0].value) || 0,
-          unit: inputs[1].value || 'stuks',
-          article_number: inputs[2].value || '',
-          description: inputs[3].value || '',
+          net_amount: parseFloat(inputs[0].value) || 0,
+          article_number: inputs[1].value || '',
+          description: inputs[2].value || '',
+          quantity: parseFloat(inputs[3].value) || 0,
           unit_price: parseFloat(inputs[4].value) || 0,
-          net_amount: parseFloat(inputs[5].value) || 0,
-          vat_code: parseInt(inputs[6].value) || 21
+          vat_code: parseInt(inputs[5].value) || 21
         });
       });
       return {
@@ -476,13 +839,16 @@
       };
     }
 
+    // ═════════════════════════════════════════════════════════
+    // VÉRIFICATION AU CHARGEMENT
+    // ═════════════════════════════════════════════════════════
     window.addEventListener('load', async () => {
       try {
         const res = await fetch('/api/health');
         const health = await res.json();
         if (!health.gemini_configured) {
-  showAlert('error', 'Clé API Gemini non configurée dans Vercel ! Ajoutez GEMINI_API_KEY dans Settings → Environment Variables');
-}
+          showAlert('error', 'Clé API Gemini non configurée dans Vercel ! Ajoutez GEMINI_API_KEY dans Settings → Environment Variables');
+        }
       } catch (e) {
         showAlert('error', 'Impossible de contacter l\'API');
       }
